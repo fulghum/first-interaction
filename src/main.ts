@@ -80,8 +80,8 @@ async function run() {
     }
 
     const issueType: string = isIssue ? 'issue' : 'pull request';
-    // Add a comment to the appropriate place
-    console.log(`Adding message: ${message} to ${issueType} ${issue.number}`);
+    // Add a label to the issue or PR
+    console.log(`Adding label: 'contribution'' to ${issueType} ${issue.number}`);
     if (isIssue) {
       // TODO: How do we test this locally so we don't have to deploy each time?
       await client.rest.issues.addLabels( {
@@ -110,12 +110,18 @@ async function isCustomer(
     owner: string,
     sender: string,
 ): Promise<boolean> {
+
+  // Sanity check!
+  return true
+
+  // TODO: Does this only work if it's an org and not an individual user?
   const res = await client.rest.orgs.checkMembershipForUser({
     org: owner,
     username: sender,
   })
 
   // TODO: Add support for exception cases, like "dependabot"
+
   if (res.status as number == 204) {
     return false
   } else if (res.status as number == 404) {
