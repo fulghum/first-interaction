@@ -21,7 +21,7 @@ async function run() {
       return;
     }
 
-    // Do nothing if its not a pr or issue
+    // Do nothing if it's not a pr or issue
     const isIssue: boolean = !!context.payload.issue;
     if (!isIssue && !context.payload.pull_request) {
       console.log(
@@ -30,36 +30,48 @@ async function run() {
       return;
     }
 
-    // Do nothing if its not their first contribution
-    console.log('Checking if its the users first contribution');
+    // Do nothing if the sender is from the project's org
+    console.log("Checking if the user is from outside the project's org");
     if (!context.payload.sender) {
       throw new Error('Internal error, no sender provided by GitHub');
     }
-    const sender: string = context.payload.sender!.login;
-    const issue: {owner: string; repo: string; number: number} = context.issue;
-    let firstContribution: boolean = false;
+    const sender: string = context.payload.sender!.login
+    const issue: {owner: string; repo: string; number: number} = context.issue
+
+    let isMemberOfProject: boolean = false
+    let firstContribution: boolean = false
+    let customer: boolean = false
     if (isIssue) {
-      firstContribution = await isFirstIssue(
-        client,
-        issue.owner,
-        issue.repo,
-        sender,
-        issue.number
-      );
+      console.log("Checking if it's an external account... " )
+      console.log("issue.owner: " + issue.owner )
+      console.log("sender:      " + sender)
+
+      customer = await isCustomer(client, issue.owner, sender)
+      // firstContribution = await isFirstIssue(
+      //   client,
+      //   issue.owner,
+      //   issue.repo,
+      //   sender,
+      //   issue.number
+      // )
     } else {
-      firstContribution = await isFirstPull(
-        client,
-        issue.owner,
-        issue.repo,
-        sender,
-        issue.number
-      );
+      customer = await isCustomer(client, issue.owner, sender)
+      // firstContribution = await isFirstPull(
+      //   client,
+      //   issue.owner,
+      //   issue.repo,
+      //   sender,
+      //   issue.number
+      // )
     }
-    if (!firstContribution) {
-      console.log('Not the users first contribution');
-      return;
+    if (customer) {
+      console.log('sender identified as customer:  ' + sender)
+    } else {
+      console.log('Not a customer')
+      return
     }
 
+    // TODO: Change to "if no label is set for this type of contribution"
     // Do nothing if no message set for this type of contribution
     const message: string = isIssue ? issueMessage : prMessage;
     if (!message) {
@@ -71,20 +83,21 @@ async function run() {
     // Add a comment to the appropriate place
     console.log(`Adding message: ${message} to ${issueType} ${issue.number}`);
     if (isIssue) {
-      await client.rest.issues.createComment({
+      // TODO: How do we test this locally so we don't have to deploy each time?
+      await client.rest.issues.addLabels( {
         owner: issue.owner,
         repo: issue.repo,
         issue_number: issue.number,
-        body: message
-      });
+        labels: ["contribution"],
+      })
     } else {
-      await client.rest.pulls.createReview({
+      // TODO: Could combine this with the block above
+      await client.rest.issues.addLabels( {
         owner: issue.owner,
         repo: issue.repo,
-        pull_number: issue.number,
-        body: message,
-        event: 'COMMENT'
-      });
+        issue_number: issue.number,
+        labels: ["contribution"],
+      })
     }
   } catch (error) {
     core.setFailed((error as any).message);
@@ -92,79 +105,26 @@ async function run() {
   }
 }
 
-async function isFirstIssue(
-  client: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
-  sender: string,
-  curIssueNumber: number
+async function isCustomer(
+    client: ReturnType<typeof github.getOctokit>,
+    owner: string,
+    sender: string,
 ): Promise<boolean> {
-  const {status, data: issues} = await client.rest.issues.listForRepo({
-    owner: owner,
-    repo: repo,
-    creator: sender,
-    state: 'all'
-  });
+  const res = await client.rest.orgs.checkMembershipForUser({
+    org: owner,
+    username: sender,
+  })
 
-  if (status !== 200) {
-    throw new Error(`Received unexpected API status code ${status}`);
+  // TODO: Add support for exception cases, like "dependabot"
+  if (res.status as number == 204) {
+    return false
+  } else if (res.status as number == 404) {
+    return true
+  } else {
+    throw new Error(`Received unexpected API status code ${res.status}`);
   }
 
-  if (issues.length === 0) {
-    return true;
-  }
-
-  for (const issue of issues) {
-    if (issue.number < curIssueNumber && !issue.pull_request) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-// No way to filter pulls by creator
-async function isFirstPull(
-  client: ReturnType<typeof github.getOctokit>,
-  owner: string,
-  repo: string,
-  sender: string,
-  curPullNumber: number,
-  page: number = 1
-): Promise<boolean> {
-  // Provide console output if we loop for a while.
-  console.log('Checking...');
-  const {status, data: pulls} = await client.rest.pulls.list({
-    owner: owner,
-    repo: repo,
-    per_page: 100,
-    page: page,
-    state: 'all'
-  });
-
-  if (status !== 200) {
-    throw new Error(`Received unexpected API status code ${status}`);
-  }
-
-  if (pulls.length === 0) {
-    return true;
-  }
-
-  for (const pull of pulls) {
-    const login = pull.user?.login;
-    if (login === sender && pull.number < curPullNumber) {
-      return false;
-    }
-  }
-
-  return await isFirstPull(
-    client,
-    owner,
-    repo,
-    sender,
-    curPullNumber,
-    page + 1
-  );
+  return false
 }
 
 run();
