@@ -95,15 +95,16 @@ async function isCustomer(
     sender: string,
 ): Promise<boolean> {
 
-  // Sanity check!
-  // console.log('Sanity check... returning true...');
-  // return true
 
   // TODO: Does this only work if it's an org and not an individual user?
   const res = await client.rest.orgs.checkMembershipForUser({
     org: owner,
     username: sender,
   })
+
+  // Sanity check!
+  console.log('Sanity check... returning true...');
+  return true
 
   // TODO: Add support for exception cases, like "dependabot"
 
