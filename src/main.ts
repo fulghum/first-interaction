@@ -38,8 +38,6 @@ async function run() {
     const sender: string = context.payload.sender!.login
     const issue: {owner: string; repo: string; number: number} = context.issue
 
-    let isMemberOfProject: boolean = false
-    let firstContribution: boolean = false
     let customer: boolean = false
     if (isIssue) {
       console.log("Checking if it's an external account... " )
@@ -47,22 +45,8 @@ async function run() {
       console.log("sender:      " + sender)
 
       customer = await isCustomer(client, issue.owner, sender)
-      // firstContribution = await isFirstIssue(
-      //   client,
-      //   issue.owner,
-      //   issue.repo,
-      //   sender,
-      //   issue.number
-      // )
     } else {
       customer = await isCustomer(client, issue.owner, sender)
-      // firstContribution = await isFirstPull(
-      //   client,
-      //   issue.owner,
-      //   issue.repo,
-      //   sender,
-      //   issue.number
-      // )
     }
     if (customer) {
       console.log('sender identified as customer:  ' + sender)
