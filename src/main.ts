@@ -112,6 +112,7 @@ async function isCustomer(
 ): Promise<boolean> {
 
   // Sanity check!
+  console.log('Sanity check... returning true...');
   return true
 
   // TODO: Does this only work if it's an org and not an individual user?
