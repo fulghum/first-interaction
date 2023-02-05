@@ -5,7 +5,7 @@ async function run() {
   try {
     const issueLabel: string = core.getInput('issue-label')
     const prLabel: string = core.getInput('pr-label')
-    const excludes: string = core.getInput('excludes')
+    const exclude: string = core.getInput('exclude')
     if (!issueLabel && !prLabel) {
       throw new Error('Action must have at least one of issue-label or pr-label set')
     }
@@ -44,10 +44,10 @@ async function run() {
     console.log("sender:      " + sender)
 
     // TODO: Extract to function
-    console.log('excludes: ' + excludes)
-    if (excludes) {
+    console.log('excludes: ' + exclude)
+    if (exclude) {
       let excluded = false
-      let excludedSenders = excludes.split(",");
+      let excludedSenders = exclude.split(",");
       console.log('excludedSenders: ' + excludedSenders.join('; '))
       for (var excludedSender of excludedSenders) {
         if (excludedSender == sender) {
@@ -124,7 +124,7 @@ async function isProjectMember(
       return false
     }
   } catch (error) {
-    console.log('ERROR in isProjectMember: ' + error.message)
+    console.log('ERROR in isProjectMember: ' + error)
     console.log('The owner may not be an organization... checking individual account...')
     return owner == sender
   }
