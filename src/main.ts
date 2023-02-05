@@ -3,9 +3,10 @@ import * as github from '@actions/github';
 
 async function run() {
   try {
-    const issueMessage: string = core.getInput('issue-message');
-    const prMessage: string = core.getInput('pr-message');
-    if (!issueMessage && !prMessage) {
+    const issueLabel: string = core.getInput('issue-label')
+    const prLabel: string = core.getInput('pr-label')
+    const excludes: string = core.getInput('excludes')
+    if (!issueLabel && !prLabel) {
       throw new Error(
         'Action must have at least one of issue-message or pr-message set'
       );
@@ -38,85 +39,95 @@ async function run() {
     const sender: string = context.payload.sender!.login
     const issue: {owner: string; repo: string; number: number} = context.issue
 
-    let customer: boolean = false
-    if (isIssue) {
-      console.log("Checking if it's an external account... " )
-      console.log("issue.owner: " + issue.owner )
-      console.log("sender:      " + sender)
+    console.log("Checking if it's an external account... " )
+    console.log("issue.owner: " + issue.owner )
+    console.log("sender:      " + sender)
 
-      customer = await isCustomer(client, issue.owner, sender)
-    } else {
-      customer = await isCustomer(client, issue.owner, sender)
+    // TODO: Extract to function
+    console.log('excludes: ' + excludes)
+    if (excludes) {
+      let excluded = false
+      let excludedSenders = excludes.split(",");
+      console.log('excludedSenders: ' + excludedSenders.join('; '))
+      for (var excludedSender of excludedSenders) {
+        if (excludedSender == sender) {
+          excluded = true
+          break
+        }
+      }
+
+      if (excluded) {
+        console.log('author is excluded: ' + sender)
+        return
+      } else {
+        console.log('author is NOT excluded: ' + sender)
+      }
     }
-    if (customer) {
-      console.log('sender identified as customer:  ' + sender)
-    } else {
-      console.log('Not a customer')
+
+    let member: boolean = await isProjectMember(client, issue.owner, sender)
+    if (member) {
+      console.log('author is a project member: ' + sender)
       return
+    } else {
+      console.log('author is not a project member:  ' + sender)
     }
 
-    // TODO: Change to "if no label is set for this type of contribution"
     // Do nothing if no message set for this type of contribution
-    const message: string = isIssue ? issueMessage : prMessage;
-    if (!message) {
-      console.log('No message provided for this type of contribution');
+    const label: string = isIssue ? issueLabel : prLabel;
+    if (!label) {
+      console.log('No label provided for this type of contribution');
       return;
     }
 
     const issueType: string = isIssue ? 'issue' : 'pull request';
     // Add a label to the issue or PR
-    console.log(`Adding label: 'contribution'' to ${issueType} ${issue.number}`);
-    if (isIssue) {
-      // TODO: How do we test this locally so we don't have to deploy each time?
-      await client.rest.issues.addLabels( {
-        owner: issue.owner,
-        repo: issue.repo,
-        issue_number: issue.number,
-        labels: ["contribution"],
-      })
-    } else {
-      // TODO: Could combine this with the block above
-      await client.rest.issues.addLabels( {
-        owner: issue.owner,
-        repo: issue.repo,
-        issue_number: issue.number,
-        labels: ["contribution"],
-      })
-    }
+    console.log(`Adding label: '${label}' to ${issueType} ${issue.number}`);
+    // TODO: How do we test this locally so we don't have to deploy each time?
+    // TODO: What happens if the label doesn't exist?
+    await client.rest.issues.addLabels( {
+      owner: issue.owner,
+      repo: issue.repo,
+      issue_number: issue.number,
+      labels: [label],
+    })
   } catch (error) {
     core.setFailed((error as any).message);
     return;
   }
 }
 
-async function isCustomer(
+// isProjectMember checks if the specified sender is a member of the team owning the current repository.
+// If the current project is owned by an organization, then membership in that organization is checked.
+// Otherwise, if the repository owner is an individual account, the sender is compared directly.
+async function isProjectMember(
     client: ReturnType<typeof github.getOctokit>,
     owner: string,
     sender: string,
 ): Promise<boolean> {
+  try {
+    // TODO: This will only work if it's an org and not an individual user!
+    //       Need to create a test org to try this out?
+    //       https://stackoverflow.com/questions/48364398/github-api-determine-if-user-or-org
+    //       https://docs.github.com/en/organizations/collaborating-with-groups-in-organizations/creating-a-new-organization-from-scratch
+    const res = await client.rest.orgs.checkMembershipForUser({
+      org: owner,
+      username: sender,
+    })
 
-
-  // TODO: Does this only work if it's an org and not an individual user?
-  const res = await client.rest.orgs.checkMembershipForUser({
-    org: owner,
-    username: sender,
-  })
-
-  // Sanity check!
-  console.log('Sanity check... returning true...');
-  return true
-
-  // TODO: Add support for exception cases, like "dependabot"
-
-  if (res.status as number == 204) {
-    return false
-  } else if (res.status as number == 404) {
-    return true
-  } else {
-    throw new Error(`Received unexpected API status code ${res.status}`);
+    if (res.status as number == 204) {
+      return true
+    } else if (res.status as number == 404) {
+      return false
+    } else {
+      console.log('Received unexpected API status code ${res.status}')
+      core.setFailed('Received unexpected API status code ${res.status}');
+      return false
+    }
+  } catch (error) {
+    console.log('ERROR in isProjectMember: ' + error.message)
+    console.log('The owner may not be an organization... checking individual account...')
+    return owner == sender
   }
-
-  return false
 }
 
 run();
