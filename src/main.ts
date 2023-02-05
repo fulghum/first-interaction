@@ -7,9 +7,7 @@ async function run() {
     const prLabel: string = core.getInput('pr-label')
     const excludes: string = core.getInput('excludes')
     if (!issueLabel && !prLabel) {
-      throw new Error(
-        'Action must have at least one of issue-message or pr-message set'
-      );
+      throw new Error('Action must have at least one of issue-label or pr-label set')
     }
     // Get client and context
     const client = github.getOctokit(
