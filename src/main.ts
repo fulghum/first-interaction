@@ -82,8 +82,9 @@ async function run() {
     const issueType: string = isIssue ? 'issue' : 'pull request';
     // Add a label to the issue or PR
     console.log(`Adding label: '${label}' to ${issueType} ${issue.number}`);
-    // TODO: How do we test this locally so we don't have to deploy each time?
-    // TODO: What happens if the label doesn't exist?
+    // TODO: Set a better failed error message if the label doesn't exist
+    // TODO: This doesn't work for pull requests? Error: Resource not accessible by integration
+    // https://www.google.com/search?q=github+Error%3A+Resource+not+accessible+by+integration&oq=github+Error%3A+Resource+not+accessible+by+integration&aqs=chrome..69i57j69i64.920j0j7&sourceid=chrome&ie=UTF-8
     await client.rest.issues.addLabels( {
       owner: issue.owner,
       repo: issue.repo,
