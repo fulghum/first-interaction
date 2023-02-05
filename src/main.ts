@@ -29,6 +29,8 @@ async function run() {
       return;
     }
 
+    console.log("SANITY CHECK");
+
     // Do nothing if the sender is from the project's org
     console.log("Checking if the user is from outside the project's org");
     if (!context.payload.sender) {
