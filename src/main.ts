@@ -42,11 +42,9 @@ async function run() {
     console.log("sender:      " + sender)
 
     // TODO: Extract to function
-    console.log('excludes: ' + exclude)
     if (exclude) {
       let excluded = false
       let excludedSenders = exclude.split(",");
-      console.log('excludedSenders: ' + excludedSenders.join('; '))
       for (var excludedSender of excludedSenders) {
         if (excludedSender == sender) {
           excluded = true
@@ -82,7 +80,9 @@ async function run() {
     console.log(`Adding label: '${label}' to ${issueType} ${issue.number}`);
     // TODO: Set a better failed error message if the label doesn't exist
     // TODO: This doesn't work for pull requests? Error: Resource not accessible by integration
-    // https://www.google.com/search?q=github+Error%3A+Resource+not+accessible+by+integration&oq=github+Error%3A+Resource+not+accessible+by+integration&aqs=chrome..69i57j69i64.920j0j7&sourceid=chrome&ie=UTF-8
+    // https://github.com/actions/labeler/issues/12
+    // https://github.com/actions/first-interaction/issues/10
+    // We might have to swith to a GitHub App to fix this?
     await client.rest.issues.addLabels( {
       owner: issue.owner,
       repo: issue.repo,
