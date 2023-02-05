@@ -1,14 +1,16 @@
 name: 'First interaction'
-description: 'Greet new contributors when they create their first issue or open their first pull request'
+description: 'Label issues and pull requests from requesters outside of the project team'
 author: 'GitHub'
 inputs:
   repo-token:
     description: 'Token for the repository. Can be passed in using {{ secrets.GITHUB_TOKEN }}'
     required: true
-  issue-message:
-    description: 'Comment to post on an individual''s first issue'
-  pr-message:
-    description: 'Comment to post on an individual''s first pull request'
+  issue-label:
+    description: 'Label to apply to issues from requesters outside the project'
+  pr-label:
+    description: 'Label to apply to PRs from requesters outside the project'
+  excludes:
+    description: 'A comma-separated list of requesters to exclude from labeling (e.g. dependabot)'
 runs:
   using: 'docker'
   image: 'Dockerfile'
